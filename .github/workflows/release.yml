@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: 构建发布包
@@ -13,37 +16,65 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+        
+      - name: 输出调试信息
+        run: |
+          echo "当前标签: ${GITHUB_REF}"
+          echo "当前仓库: ${GITHUB_REPOSITORY}"
+          git tag --list
         
       - name: 获取版本号
         id: get_version
         run: |
           echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           echo "VERSION_NUMBER=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          # 输出版本信息以便调试
+          echo "版本标签: $(echo ${GITHUB_REF#refs/tags/})"
+          echo "版本号: $(echo ${GITHUB_REF#refs/tags/v})"
         
       - name: 更新manifest.json版本
         run: |
           # 使用jq更新版本号
           jq '.version = "${{ steps.get_version.outputs.VERSION_NUMBER }}"' manifest.json > manifest.json.tmp
           mv manifest.json.tmp manifest.json
+          # 显示更新后的manifest内容
+          cat manifest.json
+        
+      - name: 检查文件存在
+        run: |
+          ls -la
+          echo "检查核心文件是否存在:"
+          [ -f manifest.json ] && echo "manifest.json 存在" || echo "manifest.json 不存在"
+          [ -f background.js ] && echo "background.js 存在" || echo "background.js 不存在"
+          [ -f content.js ] && echo "content.js 存在" || echo "content.js 不存在"
+          [ -d images ] && echo "images 目录存在" || echo "images 目录不存在"
+          [ -f README.md ] && echo "README.md 存在" || echo "README.md 不存在"
         
       - name: 创建发布目录
         run: |
           mkdir -p release
           # 复制核心文件
-          cp manifest.json background.js content.js release/
+          cp manifest.json background.js content.js release/ || echo "核心文件复制失败"
           # 复制图片资源
-          cp -r images release/
+          cp -r images release/ || echo "图片目录复制失败"
           # 复制说明文档
-          cp README.md release/
+          cp README.md release/ || echo "README复制失败"
           # 复制可选文件（如果存在）
           [ -f popup.html ] && cp popup.html release/ || echo "No popup.html found"
           [ -f popup.js ] && cp popup.js release/ || echo "No popup.js found"
+          # 列出发布目录内容
+          echo "发布目录内容:"
+          ls -la release/
           
       - name: 打包发布文件
         run: |
           cd release
           zip -r ../translate-unlocker-${{ steps.get_version.outputs.VERSION }}.zip ./*
           cd ..
+          # 检查ZIP文件是否创建成功
+          ls -la translate-unlocker-${{ steps.get_version.outputs.VERSION }}.zip
           
       - name: 创建Release
         id: create_release
