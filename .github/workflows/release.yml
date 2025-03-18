@@ -1,0 +1,72 @@
+name: 发布Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: 构建发布包
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+        
+      - name: 获取版本号
+        id: get_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "VERSION_NUMBER=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        
+      - name: 更新manifest.json版本
+        run: |
+          # 使用jq更新版本号
+          jq '.version = "${{ steps.get_version.outputs.VERSION_NUMBER }}"' manifest.json > manifest.json.tmp
+          mv manifest.json.tmp manifest.json
+        
+      - name: 创建发布目录
+        run: |
+          mkdir -p release
+          # 复制核心文件
+          cp manifest.json background.js content.js release/
+          # 复制图片资源
+          cp -r images release/
+          # 复制说明文档
+          cp README.md release/
+          # 复制可选文件（如果存在）
+          [ -f popup.html ] && cp popup.html release/ || echo "No popup.html found"
+          [ -f popup.js ] && cp popup.js release/ || echo "No popup.js found"
+          
+      - name: 打包发布文件
+        run: |
+          cd release
+          zip -r ../translate-unlocker-${{ steps.get_version.outputs.VERSION }}.zip ./*
+          cd ..
+          
+      - name: 创建Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: 翻译解禁 ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            translate-unlocker-${{ steps.get_version.outputs.VERSION }}.zip
+          body: |
+            # 翻译解禁 (TranslateUnlocker) ${{ steps.get_version.outputs.VERSION }}
+            
+            一个简单的浏览器扩展，用于解除网页上的翻译限制。
+            
+            ## 安装方法
+            
+            1. 下载 `translate-unlocker-${{ steps.get_version.outputs.VERSION }}.zip` 并解压
+            2. 打开浏览器的扩展管理页面
+            3. 启用开发者模式
+            4. 点击"加载已解压的扩展"
+            5. 选择解压后的文件夹
+            
+            ## 更新日志
+            
+            请查看 [README.md](https://github.com/${{ github.repository }}/blob/${{ steps.get_version.outputs.VERSION }}/README.md) 了解详情。 
