@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "翻译解禁",
+  "version": "1.0.0",
+  "description": "解除网页翻译限制，修改translate=\"no\"属性，使所有内容可被浏览器翻译功能识别",
+  "permissions": [
+    "storage", 
+    "activeTab", 
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    },
+    "default_title": "翻译解禁：点击切换状态"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
+} 
